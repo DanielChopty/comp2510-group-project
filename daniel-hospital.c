@@ -41,7 +41,7 @@ DoctorSchedule schedule[DAYS_IN_WEEK][SHIFTS_IN_DAY];
 struct PatientInformation patients[MAX_PATIENTS];
 int currentPatientCount = 0;
 
-// Prototype functions
+// Function prototypes
 void displayMenu();
 void addNewPatient();
 void viewAllPatients();
@@ -75,7 +75,8 @@ void displayMenu()
         printf("6. Exit\n");
 
         scanf("%d", &userChoice);
-        getchar(); // Consume newline character left by scanf
+        // Consume newline left by scanf
+        getchar();
 
         switch (userChoice)
         {
@@ -115,6 +116,7 @@ void addNewPatient()
 {
     if (currentPatientCount >= MAX_PATIENTS)
     {
+        // If the system is full, print an error and return to the menu
         printf("Error: Cannot add more patients, the system is full!\n");
         printf("\n");
         return;
@@ -131,34 +133,40 @@ void addNewPatient()
     // Validate the patient's ID
     if (validatePatientID(newPatient.patientID) == 1)
     {
-        return; // If patient ID is not unique, return to the main menu
+        // If patient ID is not unique, return to the main menu
+        return;
     }
 
     // Get patient's name
     printf("Enter Patient Name: ");
     fgets(newPatient.name, NAME_MAX_LENGTH, stdin);
-    newPatient.name[strcspn(newPatient.name, "\n")] = 0; // Remove trailing newline
+    // Remove trailing newline
+    newPatient.name[strcspn(newPatient.name, "\n")] = 0;
 
     // Get patient's age
     printf("Enter Patient Age: ");
     scanf("%d", &newPatient.age);
-    getchar(); // Consume newline
+    // Consume newline
+    getchar();
 
     // Validate the patient's age
     if (validatePatientAge(&newPatient) == 1)
     {
-        return; // If age is invalid, return to the main menu
+        // If age is invalid, return to the main menu
+        return;
     }
 
     // Get patient's diagnosis
     printf("Enter Patient Diagnosis: ");
     fgets(newPatient.diagnosis, DIAGNOSIS_MAX_LENGTH, stdin);
-    newPatient.diagnosis[strcspn(newPatient.diagnosis, "\n")] = 0; // Remove trailing newline
+    // Remove trailing newline
+    newPatient.diagnosis[strcspn(newPatient.diagnosis, "\n")] = 0;
 
     // Get patient's room number
     printf("Enter Room Number: ");
     scanf("%d", &newPatient.roomNumber);
-    getchar(); // Consume newline
+    // Consume newline
+    getchar();
 
     // Save the new patient record in the array
     patients[currentPatientCount] = newPatient;
@@ -174,6 +182,7 @@ void viewAllPatients()
 {
     if (currentPatientCount == 0)
     {
+        // If no patients are found, notify the user
         printf("No patients found!\n");
         printf("\n");
         return;
@@ -200,6 +209,7 @@ void searchForPatient()
 {
     if (currentPatientCount == 0)
     {
+        // If no patients are found, notify the user
         printf("Error: No patients found!\n");
         printf("\n");
         return;
@@ -226,6 +236,7 @@ void searchForPatient()
             {
                 if (patients[i].patientID == id)
                 {
+                    // Display the patient's record
                     printf("Here is patient #%d's record:\n", patients[i].patientID);
                     displayOnePatientDetails(patients[i]);
                     printf("\n");
@@ -235,6 +246,7 @@ void searchForPatient()
             }
             if (found == 0)
             {
+                // If the patient is not found, notify the user
                 printf("Error: Patient with ID %d not found.\n", id);
                 printf("\n");
             }
@@ -246,12 +258,14 @@ void searchForPatient()
             int found = 0;
             printf("Enter Patient Name: ");
             fgets(name, NAME_MAX_LENGTH, stdin);
-            name[strcspn(name, "\n")] = 0; // Remove trailing newline
+            // Remove trailing newline
+            name[strcspn(name, "\n")] = 0;
 
             for (int i = 0; i < currentPatientCount; i++)
             {
                 if (strcmp(patients[i].name, name) == 0)
                 {
+                    // Display the patient's record
                     printf("Here is %s's record:\n", patients[i].name);
                     displayOnePatientDetails(patients[i]);
                     printf("\n");
@@ -261,6 +275,7 @@ void searchForPatient()
             }
             if (found == 0)
             {
+                // If the patient is not found, notify the user
                 printf("Error: Patient with name %s not found.\n", name);
                 printf("\n");
             }
@@ -268,6 +283,7 @@ void searchForPatient()
         }
         default:
         {
+            // If the user enters an invalid choice, notify them
             printf("Invalid choice. Please try again.\n");
             printf("\n");
             break;
@@ -280,6 +296,7 @@ void dischargePatient()
 {
     if (currentPatientCount == 0)
     {
+        // If no patients are found, notify the user
         printf("Error: No patients found!\n");
         printf("\n");
         return;
@@ -287,9 +304,11 @@ void dischargePatient()
 
     int id;
     int found = 0;
+
     printf("Enter ID of patient to be discharged: ");
     scanf("%d", &id);
-    getchar(); // Consume newline
+    // Consume newline
+    getchar();
 
     for (int i = 0; i < currentPatientCount; i++)
     {
@@ -310,6 +329,7 @@ void dischargePatient()
 
     if (found == 0)
     {
+        // If the patient is not found, notify the user
         printf("Error: Patient with ID %d not found.\n", id);
         printf("\n");
     }
@@ -323,7 +343,8 @@ void manageDoctorSchedule()
     printf("1. Assign a doctor to a shift\n");
     printf("2. Display the full weekly schedule\n");
     scanf("%d", &userChoice);
-    getchar(); // Consume newline
+    // Consume newline
+    getchar();
 
     switch (userChoice)
     {
@@ -335,10 +356,12 @@ void manageDoctorSchedule()
 
             printf("Enter Day: (0 for Sunday, 1 for Monday, 2 for Tuesday...) ");
             scanf("%d", &dayOfWeek);
-            getchar(); // Consume newline
+            // Consume newline
+            getchar();
 
             if (dayOfWeek < 0 || dayOfWeek > 6)
             {
+                // If the day of the week is out of range, notify the user
                 printf("Error: Day of week out of range.\n");
                 printf("\n");
                 break;
@@ -346,10 +369,12 @@ void manageDoctorSchedule()
 
             printf("Enter Shift: (0 for morning, 1 for afternoon, 2 for evening) ");
             scanf("%d", &shift);
-            getchar(); // Consume newline
+            // Consume newline
+            getchar();
 
             if (shift < 0 || shift > 2)
             {
+                // If the shift is out of range, notify the user
                 printf("Error: Shift out of range.\n");
                 printf("\n");
                 break;
@@ -357,10 +382,14 @@ void manageDoctorSchedule()
 
             printf("Enter the doctor's name: ");
             fgets(doctorName, NAME_MAX_LENGTH, stdin);
-            doctorName[strcspn(doctorName, "\n")] = 0; // Remove trailing newline
+            // Remove trailing newline
+            doctorName[strcspn(doctorName, "\n")] = 0;
 
             strcpy(schedule[dayOfWeek][shift].DoctorName, doctorName);
-            printf("Doctor %s has been added to the schedule on day %d, shift %d\n", doctorName, dayOfWeek, shift);
+            printf("Doctor %s has been added to the schedule on day %d, shift %d\n",
+                doctorName,
+                dayOfWeek,
+                shift);
             printf("\n");
             break;
         }
@@ -391,6 +420,7 @@ void manageDoctorSchedule()
 
         default:
         {
+            // If the user enters an invalid choice, notify them
             printf("Error: Invalid choice. Please try again.\n");
             printf("\n");
             break;
@@ -420,12 +450,15 @@ int validatePatientID(int newPatientID)
     {
         if (patients[i].patientID == newPatientID)
         {
+            // If the patient ID is not unique, print an error
             printf("Error: Patient #%d already exists.\n", newPatientID);
             printf("\n");
-            return 1; // Not unique
+            // Not unique
+            return 1;
         }
     }
-    return 0; // Unique
+    // Unique
+    return 0;
 }
 
 // Helper function to validate a patient's age
@@ -433,9 +466,12 @@ int validatePatientAge(struct PatientInformation patient)
 {
     if (patient.age < PATIENT_MIN_AGE || patient.age > PATIENT_MAX_AGE)
     {
+        // If the age is invalid, print an error
         printf("Error: Patient age must be a valid positive integer (from 1 to 125).\n");
         printf("\n");
-        return 1; // Invalid age
+        // Invalid age
+        return 1;
     }
-    return 0; // Valid age
+    // Valid age
+    return 0;
 }
