@@ -22,13 +22,15 @@
 #define BACKUP_FILE "backup.dat"
 
 // Structure to store patient information
-struct PatientInformation {
+// Changed(by Jun): Changed to Linked List
+typedef struct PatientInformation {
     int patientID;
     char name[NAME_MAX_LENGTH];
     int age;
     char diagnosis[DIAGNOSIS_MAX_LENGTH];
     int roomNumber;
-};
+    struct PatientInformation *next;
+} Patient;
 
 // Structure to store doctor's name
 typedef struct {
@@ -39,9 +41,9 @@ typedef struct {
 DoctorSchedule schedule[DAYS_IN_WEEK][SHIFTS_IN_DAY];
 
 // Global variables
-struct PatientInformation *patients = NULL; // Pointer to dynamically allocated array of patients
-int currentPatientCount = 0;
-int patientCapacity = INITIAL_PATIENT_CAPACITY; // Initial capacity
+// Changed(by Jun): Changed to Linked List
+Patient *head = NULL; // Head of the list
+int patientCount = 0; // Current patients number
 
 // Function prototypes
 void displayMenu();
@@ -61,11 +63,11 @@ void restoreData();
 
 int main() {
     // Initially allocate memory for the patients array
-    patients = (struct PatientInformation *)malloc(patientCapacity * sizeof(struct PatientInformation));
-    if (patients == NULL) {
-        printf("Memory allocation failed!\n");
-        return 1;
-    }
+//    patients = (struct PatientInformation *)malloc(patientCapacity * sizeof(struct PatientInformation)); // no need of this anymore since we changed to Linked List
+//    if (patients == NULL) {
+//        printf("Memory allocation failed!\n");
+//        return 1;
+//    }
 
     // Load data from file if available
     loadDataFromFile();
@@ -156,18 +158,16 @@ void saveDataToFile() {
         return;
     }
 
-    fwrite(&currentPatientCount, sizeof(int), 1, patientFile);
-    fwrite(patients, sizeof(struct PatientInformation), currentPatientCount, patientFile);
-    fclose(patientFile);
+    // Linked List
+    fwrite(&patientCount, sizeof(int), 1, patientFile);
 
-    FILE *scheduleFile = fopen(SCHEDULE_FILE, "wb");
-    if (scheduleFile == NULL) {
-        printf("Error saving doctor schedule data.\n");
-        return;
+    Patient *current = head;
+    while (current) {
+        fwrite(current, sizeof(Patient), 1, patientFile);
+        current = current->next;
     }
 
-    fwrite(schedule, sizeof(DoctorSchedule), DAYS_IN_WEEK * SHIFTS_IN_DAY, scheduleFile);
-    fclose(scheduleFile);
+    fclose(patientFile);
 }
 
 // Function to load patient data and doctor schedule from files
@@ -222,18 +222,21 @@ void restoreData() {
 
 // 1. Add a New Patient
 void addNewPatient() {
-    if (currentPatientCount >= patientCapacity) {
-        // If the system is full, reallocate more memory
-        reallocatePatientMemory();
-        printf("Memory reallocated. New patient capacity is %d.\n", patientCapacity);
-    }
+  Patient *newPatient = (Patient *)malloc(sizeof(Patient)); // Changed(by Jun): Adding patient using Linked List
+//    if (currentPatientCount >= patientCapacity) {
+//        // If the system is full, reallocate more memory
+//        reallocatePatientMemory();
+//        printf("Memory reallocated. New patient capacity is %d.\n", patientCapacity);
+//    }
+  if (!newPatient) {
+    printf("Memory allocation failed!\n");
+    return;
+  }
 
-    struct PatientInformation newPatient;
-
-    // Get patient details
-    printf("Enter Patient ID: ");
-    scanf("%d", &newPatient.patientID);
-    getchar(); // Consume newline after entering the ID
+  // Get patient details
+  printf("Enter Patient ID: ");
+  scanf("%d", &newPatient->patientID);
+  getchar(); // Consume newline after entering the ID
 
     // Validate the patient's ID
     if (validatePatientID(newPatient.patientID) == 1) {
@@ -266,124 +269,136 @@ void addNewPatient() {
     getchar();
 
     // Save the new patient record in the array
-    patients[currentPatientCount] = newPatient;
-    currentPatientCount++;
+//    patients[currentPatientCount] = newPatient;
+//    currentPatientCount++;
+    newPatient->next = head; // Changed(by Jun): Adding new patient in the head of the list
+    head = newPatient;
+    patientCount++;
 
     printf("%s Added!\n\n", newPatient.name);
 }
 
 // 2. View all Patients on File
 void viewAllPatients() {
-    if (currentPatientCount == 0) {
+    if (head == NULL) {
         printf("No patients found!\n\n");
         return;
     }
 
     printf("%-12s %-20s %-6s %-30s %-12s\n", "Patient ID", "Name", "Age", "Diagnosis", "Room Number");
 
-    for (int i = 0; i < currentPatientCount; i++) {
-        printf("%-12d %-20s %-6d %-30s %-12d\n",
-               patients[i].patientID,
-               patients[i].name,
-               patients[i].age,
-               patients[i].diagnosis,
-               patients[i].roomNumber);
+    // Scan the Linked List
+    Patient *current = head;
+    while (current != NULL) {
+      printf("%-12d %-20s %-6d %-30s %-12d\n",
+             current->patientID,
+             current->name,
+             current->age,
+             current->diagnosis,
+             current->roomNumber);
+      current = current->next; // To the next node
     }
     printf("\n");
+
+//    for (int i = 0; i < currentPatientCount; i++) {
+//        printf("%-12d %-20s %-6d %-30s %-12d\n",
+//               patients[i].patientID,
+//               patients[i].name,
+//               patients[i].age,
+//               patients[i].diagnosis,
+//               patients[i].roomNumber);
+//    }
+//    printf("\n");
 }
 
 // 3. Search for a Patient
+// Changed(by Jun): From for-loop to while(current) for scanning the Linked List
 void searchForPatient() {
-    if (currentPatientCount == 0) {
-        printf("Error: No patients found!\n\n");
-        return;
+    if (head == NULL) {
+      printf("Error: No patients found!\n");
+      return;
     }
 
-    int userChoice;
-    printf("How would you like to search for a patient?\n");
-    printf("1. Search by ID\n");
-    printf("2. Search by Name\n");
+    int userChoice, id;
+    char name[NAME_MAX_LENGTH];
+
+    printf("Search by:\n1. ID\n2. Name\nChoice: ");
     scanf("%d", &userChoice);
-    getchar(); // Consume newline
+    getchar();
 
-    switch (userChoice) {
-        case 1: {
-            int id;
-            int found = 0;
-            printf("Enter Patient ID: ");
-            scanf("%d", &id);
-            getchar(); // Consume newline
+    if (userChoice == 1) {
+      printf("Enter Patient ID: ");
+      scanf("%d", &id);
+      getchar();
 
-            for (int i = 0; i < currentPatientCount; i++) {
-                if (patients[i].patientID == id) {
-                    printf("Here is patient #%d's record:\n", patients[i].patientID);
-                    displayOnePatientDetails(patients[i]);
-                    printf("\n");
-                    found = 1;
-                    break;
-                }
-            }
-            if (found == 0) {
-                printf("Error: Patient with ID %d not found.\n\n", id);
-            }
-            break;
+      Patient *current = head;
+      while (current) {
+        if (current->patientID == id) {
+          printf("Found Patient: %s (ID: %d, Age: %d, Diagnosis: %s, Room: %d)\n",
+                 current->name,
+                 current->patientID,
+                 current->age,
+                 current->diagnosis,
+                 current->roomNumber);
+          return;
         }
-        case 2: {
-            char name[NAME_MAX_LENGTH];
-            int found = 0;
-            printf("Enter Patient Name: ");
-            fgets(name, NAME_MAX_LENGTH, stdin);
-            name[strcspn(name, "\n")] = 0;
+        current = current->next;
+      }
+        printf("Patients with ID %d not found.\n", id);
+    } else if (userChoice == 2) {
+      printf("Enter Patient Name: ");
+      fgets(name, NAME_MAX_LENGTH, stdin);
+      name[strcspn(name, "\n")] = 0;
 
-            for (int i = 0; i < currentPatientCount; i++) {
-                if (strcmp(patients[i].name, name) == 0) {
-                    printf("Here is %s's record:\n", patients[i].name);
-                    displayOnePatientDetails(patients[i]);
-                    printf("\n");
-                    found = 1;
-                    break;
-                }
-            }
-            if (found == 0) {
-                printf("Error: Patient with name %s not found.\n\n", name);
-            }
-            break;
+      Patient *current = head;
+      while (current) {
+        if (strcmp(current->name, name) == 0) {
+          printf("Found Patinet: %s (ID: %d, Age: %d, Diagnosis: %s, Room: %d)\n",
+                 current->name,
+                 current->patientID,
+                 current->age,
+                 current->diagnosis,
+                 current->roomNumber);
+          return;
         }
-        default:
-            printf("Invalid choice. Please try again.\n\n");
-            break;
+        current = current->next;
+      }
+      printf("Patients with Name %s not found.\n", name);
+    } else {
+      printf("Invalid choice.\n");
     }
 }
 
 // 4. Discharge a Patient by ID
 void dischargePatient() {
-    if (currentPatientCount == 0) {
-        printf("Error: No patients found!\n\n");
+    if (head == NULL) {
+        printf("No patients found!\n\n");
         return;
     }
 
     int id;
-    int found = 0;
-
-    printf("Enter ID of patient to be discharged: ");
+    printf("Enter ID of patient to discharge: ");
     scanf("%d", &id);
-    getchar(); // Consume newline
+    getchar();
 
-    for (int i = 0; i < currentPatientCount; i++) {
-        if (patients[i].patientID == id) {
-            for (int j = i; j < currentPatientCount - 1; j++) {
-                patients[j] = patients[j + 1];
+    Patient *current = head, *prev = NULL;
+
+    while (current) {
+        if (current->patientID == id) {
+            if (prev) {
+                prev->next = current->next;
+            } else {
+                head = current->next;
             }
-            currentPatientCount--;
+            free(current);
+            patientCount--;
             printf("Patient #%d has been discharged.\n\n", id);
-            found = 1;
-            break;
+            return;
         }
+        prev = current;
+        current = current->next;
     }
-
-    if (found == 0) {
-        printf("Error: Patient with ID %d not found.\n\n", id);
-    }
+    printf("Patient with ID %d not found.\n\n", id);
 }
 
 // 5. Manage Doctors' Weekly Schedules
