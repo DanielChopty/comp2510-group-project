@@ -17,6 +17,9 @@
 #define DIAGNOSIS_MAX_LENGTH 100
 #define PATIENT_MIN_AGE 1
 #define PATIENT_MAX_AGE 125
+#define PATIENT_FILE "patients.dat"
+#define SCHEDULE_FILE "doctor_schedule.dat"
+#define BACKUP_FILE "backup.dat"
 
 // Structure to store patient information
 struct PatientInformation {
@@ -51,6 +54,10 @@ void displayOnePatientDetails();
 int validatePatientID();
 int validatePatientAge();
 void reallocatePatientMemory();
+void saveDataToFile();
+void loadDataFromFile();
+void backupData();
+void restoreData();
 
 int main() {
     // Initially allocate memory for the patients array
@@ -59,6 +66,9 @@ int main() {
         printf("Memory allocation failed!\n");
         return 1;
     }
+
+    // Load data from file if available
+    loadDataFromFile();
 
     displayMenu();
     return 0;
@@ -89,7 +99,9 @@ void displayMenu() {
         printf("3. Search for a Patient\n");
         printf("4. Discharge a Patient\n");
         printf("5. Manage Doctor Schedule\n");
-        printf("6. Exit\n");
+        printf("6. Save and Exit\n");
+        printf("7. Backup Data\n");
+        printf("8. Restore Data\n");
 
         scanf("%d", &userChoice);
         // Consume newline left by scanf
@@ -117,14 +129,95 @@ void displayMenu() {
                 break;
 
             case 6:
-                printf("Exiting program. Goodbye!\n");
+                saveDataToFile();
+                printf("Data saved successfully.\n");
                 free(patients); // Free memory before exiting
                 exit(0);
+
+            case 7:
+                backupData();
+                break;
+
+            case 8:
+                restoreData();
+                break;
 
             default:
                 printf("Invalid choice. Please try again.\n");
         }
     } while (userChoice != 6);
+}
+
+// Function to save patient data and doctor schedule to files
+void saveDataToFile() {
+    FILE *patientFile = fopen(PATIENT_FILE, "wb");
+    if (patientFile == NULL) {
+        printf("Error saving patient data.\n");
+        return;
+    }
+
+    fwrite(&currentPatientCount, sizeof(int), 1, patientFile);
+    fwrite(patients, sizeof(struct PatientInformation), currentPatientCount, patientFile);
+    fclose(patientFile);
+
+    FILE *scheduleFile = fopen(SCHEDULE_FILE, "wb");
+    if (scheduleFile == NULL) {
+        printf("Error saving doctor schedule data.\n");
+        return;
+    }
+
+    fwrite(schedule, sizeof(DoctorSchedule), DAYS_IN_WEEK * SHIFTS_IN_DAY, scheduleFile);
+    fclose(scheduleFile);
+}
+
+// Function to load patient data and doctor schedule from files
+void loadDataFromFile() {
+    FILE *patientFile = fopen(PATIENT_FILE, "rb");
+    if (patientFile != NULL) {
+        fread(&currentPatientCount, sizeof(int), 1, patientFile);
+        patients = (struct PatientInformation *)malloc(patientCapacity * sizeof(struct PatientInformation));
+        fread(patients, sizeof(struct PatientInformation), currentPatientCount, patientFile);
+        fclose(patientFile);
+    }
+
+    FILE *scheduleFile = fopen(SCHEDULE_FILE, "rb");
+    if (scheduleFile != NULL) {
+        fread(schedule, sizeof(DoctorSchedule), DAYS_IN_WEEK * SHIFTS_IN_DAY, scheduleFile);
+        fclose(scheduleFile);
+    }
+}
+
+// Function to back up the data
+void backupData() {
+    FILE *backupFile = fopen(BACKUP_FILE, "wb");
+    if (backupFile == NULL) {
+        printf("Error creating backup file.\n");
+        return;
+    }
+
+    fwrite(&currentPatientCount, sizeof(int), 1, backupFile);
+    fwrite(patients, sizeof(struct PatientInformation), currentPatientCount, backupFile);
+    fwrite(schedule, sizeof(DoctorSchedule), DAYS_IN_WEEK * SHIFTS_IN_DAY, backupFile);
+    fclose(backupFile);
+
+    printf("Data backup successful.\n");
+}
+
+// Function to restore data from backup
+void restoreData() {
+    FILE *backupFile = fopen(BACKUP_FILE, "rb");
+    if (backupFile == NULL) {
+        printf("Error: No backup file found.\n");
+        return;
+    }
+
+    fread(&currentPatientCount, sizeof(int), 1, backupFile);
+    patients = (struct PatientInformation *)malloc(patientCapacity * sizeof(struct PatientInformation));
+    fread(patients, sizeof(struct PatientInformation), currentPatientCount, backupFile);
+    fread(schedule, sizeof(DoctorSchedule), DAYS_IN_WEEK * SHIFTS_IN_DAY, backupFile);
+    fclose(backupFile);
+
+    printf("Data restored from backup.\n");
 }
 
 // 1. Add a New Patient
