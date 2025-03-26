@@ -12,13 +12,12 @@
 
 #define DAYS_IN_WEEK 7
 #define SHIFTS_IN_DAY 3
-#define INITIAL_PATIENT_CAPACITY 50
 #define NAME_MAX_LENGTH 20
 #define DIAGNOSIS_MAX_LENGTH 100
 #define PATIENT_MIN_AGE 1
 #define PATIENT_MAX_AGE 125
 #define PATIENT_FILE "patients.dat"
-#define SCHEDULE_FILE "doctor_schedule.dat"
+#define SCHEDULE_FILE "schedule.dat"
 #define BACKUP_FILE "backup.dat"
 
 // Structure to store patient information
@@ -37,13 +36,13 @@ typedef struct {
     char DoctorName[NAME_MAX_LENGTH];
 } DoctorSchedule;
 
-// 2D array for doctor's schedules
-DoctorSchedule schedule[DAYS_IN_WEEK][SHIFTS_IN_DAY];
-
 // Global variables
 // Changed(by Jun): Changed to Linked List
 Patient *head = NULL; // Head of the list
 int patientCount = 0; // Current patients number
+
+// 2D array for doctor's schedules
+DoctorSchedule schedule[DAYS_IN_WEEK][SHIFTS_IN_DAY];
 
 // Function prototypes
 void displayMenu();
@@ -52,40 +51,20 @@ void viewAllPatients();
 void searchForPatient();
 void dischargePatient();
 void manageDoctorSchedule();
-void displayOnePatientDetails();
-int validatePatientID();
-int validatePatientAge();
-void reallocatePatientMemory();
+void generateReports();
 void saveDataToFile();
 void loadDataFromFile();
 void backupData();
 void restoreData();
+void freeAllPatients();
+int validatePatientID(int);
+int validatePatientAge(struct PatientInformation *);
 
 int main() {
-    // Initially allocate memory for the patients array
-//    patients = (struct PatientInformation *)malloc(patientCapacity * sizeof(struct PatientInformation)); // no need of this anymore since we changed to Linked List
-//    if (patients == NULL) {
-//        printf("Memory allocation failed!\n");
-//        return 1;
-//    }
-
     // Load data from file if available
     loadDataFromFile();
-
     displayMenu();
     return 0;
-}
-
-// Function to reallocate memory for the patients array when the capacity is exceeded
-void reallocatePatientMemory() {
-    // Double the patient capacity (e.g. from 50 to 100)
-    patientCapacity *= 2;
-    patients = (struct PatientInformation *)realloc(patients, patientCapacity * sizeof(struct PatientInformation));
-    if (patients == NULL) {
-        printf("Memory reallocation failed!\n");
-        // Exit if reallocation fails
-        exit(1);
-    }
 }
 
 // Function to display the menu interface
@@ -133,7 +112,7 @@ void displayMenu() {
             case 6:
                 saveDataToFile();
                 printf("Data saved successfully.\n");
-                free(patients); // Free memory before exiting
+                freeAllPatients(); // Free memory before exiting
                 exit(0);
 
             case 7:
@@ -174,9 +153,13 @@ void saveDataToFile() {
 void loadDataFromFile() {
     FILE *patientFile = fopen(PATIENT_FILE, "rb");
     if (patientFile != NULL) {
-        fread(&currentPatientCount, sizeof(int), 1, patientFile);
-        patients = (struct PatientInformation *)malloc(patientCapacity * sizeof(struct PatientInformation));
-        fread(patients, sizeof(struct PatientInformation), currentPatientCount, patientFile);
+        fread(&patientCount, sizeof(int), 1, patientFile);
+        for (int i = 0; i < patientCount; i++) {
+            Patient *p = malloc(sizeof(Patient));
+            fread(p, sizeof(Patient), 1, patientFile);
+            p->next = head;
+            head = p;
+        }
         fclose(patientFile);
     }
 
@@ -195,8 +178,13 @@ void backupData() {
         return;
     }
 
-    fwrite(&currentPatientCount, sizeof(int), 1, backupFile);
-    fwrite(patients, sizeof(struct PatientInformation), currentPatientCount, backupFile);
+    fwrite(&patientCount, sizeof(int), 1, backupFile);
+    Patient *p = head;
+    while (p) {
+        fwrite(p, sizeof(Patient), 1, backupFile);
+        p = p->next;
+    }
+
     fwrite(schedule, sizeof(DoctorSchedule), DAYS_IN_WEEK * SHIFTS_IN_DAY, backupFile);
     fclose(backupFile);
 
@@ -211,10 +199,15 @@ void restoreData() {
         return;
     }
 
-    fread(&currentPatientCount, sizeof(int), 1, backupFile);
-    patients = (struct PatientInformation *)malloc(patientCapacity * sizeof(struct PatientInformation));
-    fread(patients, sizeof(struct PatientInformation), currentPatientCount, backupFile);
-    fread(schedule, sizeof(DoctorSchedule), DAYS_IN_WEEK * SHIFTS_IN_DAY, backupFile);
+    freeAllPatients(); // clears all the records that added after the user's back up.
+
+    fread(&patientCount, sizeof(int), 1, backupFile);
+    for (int i = 0; i < patientCount; i++) {
+        Patient *p = malloc(sizeof(Patient));
+        fread(p, sizeof(Patient), 1, backupFile);
+        p->next = head;
+        head = p;
+    }
     fclose(backupFile);
 
     printf("Data restored from backup.\n");
@@ -239,33 +232,33 @@ void addNewPatient() {
   getchar(); // Consume newline after entering the ID
 
     // Validate the patient's ID
-    if (validatePatientID(newPatient.patientID) == 1) {
+    if (validatePatientID(newPatient -> patientID) == 1) {
         return;
     }
 
     // Get patient's name
     printf("Enter Patient Name: ");
-    fgets(newPatient.name, NAME_MAX_LENGTH, stdin);
-    newPatient.name[strcspn(newPatient.name, "\n")] = 0;
+    fgets(newPatient-> name, NAME_MAX_LENGTH, stdin);
+    newPatient -> name[strcspn(newPatient -> name, "\n")] = 0;
 
     // Get patient's age
     printf("Enter Patient Age: ");
-    scanf("%d", &newPatient.age);
+    scanf("%d", &newPatient -> age);
     getchar(); // Consume newline
 
     // Validate the patient's age
-    if (validatePatientAge(&newPatient) == 1) {
+    if (validatePatientAge(newPatient) == 1) {
         return;
     }
 
     // Get patient's diagnosis
     printf("Enter Patient Diagnosis: ");
-    fgets(newPatient.diagnosis, DIAGNOSIS_MAX_LENGTH, stdin);
-    newPatient.diagnosis[strcspn(newPatient.diagnosis, "\n")] = 0;
+    fgets(newPatient -> diagnosis, DIAGNOSIS_MAX_LENGTH, stdin);
+    newPatient -> diagnosis[strcspn(newPatient -> diagnosis, "\n")] = 0;
 
     // Get patient's room number
     printf("Enter Room Number: ");
-    scanf("%d", &newPatient.roomNumber);
+    scanf("%d", &newPatient -> roomNumber);
     getchar();
 
     // Save the new patient record in the array
@@ -275,7 +268,7 @@ void addNewPatient() {
     head = newPatient;
     patientCount++;
 
-    printf("%s Added!\n\n", newPatient.name);
+    printf("%s Added!\n\n", newPatient -> name);
 }
 
 // 2. View all Patients on File
@@ -470,22 +463,25 @@ void manageDoctorSchedule() {
 }
 
 // Helper function to display one patient's record
-void displayOnePatientDetails(struct PatientInformation patient) {
+void displayOnePatientDetails(Patient *patient) {
+    if (patient == NULL) return;
     printf("Patient ID: %d, Name: %s, Age: %d, Diagnosis: %s, Room Number: %d\n",
-           patient.patientID,
-           patient.name,
-           patient.age,
-           patient.diagnosis,
-           patient.roomNumber);
+           patient -> patientID,
+           patient -> name,
+           patient -> age,
+           patient -> diagnosis,
+           patient -> roomNumber);
 }
 
-// Helper function to validate a patient's ID
+// fixed validatePatientID (Linked List)
 int validatePatientID(int newPatientID) {
-    for (int i = 0; i < currentPatientCount; i++) {
-        if (patients[i].patientID == newPatientID) {
-            printf("Error: Patient #%d already exists.\n\n", newPatientID);
-            return 1;
-        }
+    Patient *current = head;
+    while (current != NULL) {
+      if (current -> patientID == newPatientID) {
+        printf("Error: Patient #&d already exists.\n\n", newPatientID);
+        return 1;
+      }
+      current = current -> next;
     }
     return 0;
 }
@@ -497,4 +493,66 @@ int validatePatientAge(struct PatientInformation *patient) {
         return 1;
     }
     return 0;
+}
+
+void freeAllPatients() {
+    Patient *current = head;
+    while (current != NULL) {
+        Patient *temp = current;
+        current = current->next;
+        free(temp);
+    }
+    head = NULL;
+    patientCount = 0;
+}
+
+
+void generateReports() {
+    int choice;
+    printf("REPORTING MENU: \n");
+    printf("1. Total number of patients\n");
+    printf("2. List of discharged patients (not tracked yet)\n");
+    printf("3. Total shifts covered by each doctor(in a week)\n");
+    printf("4. Room usage report\n");
+    printf("5. Back to main menu\n");
+    scanf("%d", &choice);
+    getchar();
+
+    switch (choice) {
+        case 1:
+            printf("Total number of current patients: %d\n", patientCount);
+        break;
+
+        case 3: {
+            int doctorShifts[100] = {0};
+            char doctorNames[100][NAME_MAX_LENGTH];
+            int count = 0;
+            for (int i = 0; i < DAYS_IN_WEEK; i++) {
+                for (int j = 0; j < SHIFTS_IN_DAY; j++) {
+                    char *name = schedule[i][j].DoctorName;
+                    if (strlen(name) == 0) continue;
+                    int found = 0;
+                    for (int k = 0; k < count; k++) {
+                        if (strcmp(doctorNames[k], name) == 0) {
+                            doctorShifts[k]++;
+                            found = 1;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        strcpy(doctorNames[count], name);
+                        doctorShifts[count++] = 1;
+                    }
+                }
+            }
+            printf("Doctor shift Summary:\n");
+            for (int i = 0; i < count; i++) {
+                printf("%s: %d shift\n", doctorNames[i], doctorShifts[i]);
+            }
+            break;
+        }
+        default:
+            printf("Feature not implemented yet or invalid choice.\n");
+        break;
+    }
 }
